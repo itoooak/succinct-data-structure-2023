@@ -1,5 +1,3 @@
-use std::vec;
-
 pub struct BitVector {
     data: Vec<u64>,
 }
