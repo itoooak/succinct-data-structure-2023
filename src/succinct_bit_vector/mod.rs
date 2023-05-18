@@ -4,7 +4,7 @@ pub mod raw_bit_vector;
 use self::raw_bit_vector::BitVector;
 
 pub struct SucBV {
-    bit_vector: raw_bit_vector::BitVector,
+    bit_vector: BitVector,
 }
 
 impl SucBV {
