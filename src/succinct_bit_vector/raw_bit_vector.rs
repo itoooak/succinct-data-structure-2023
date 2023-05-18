@@ -16,14 +16,6 @@ impl BitVector {
     pub fn get(self: &Self, i: usize) -> bool {
         self.data[i / 64] & (1 << (i % 64)) != 0
     }
-
-    fn set(self: &mut Self, i: usize, v: bool) {
-        if v {
-            self.data[i / 64] &= 1 << (i % 64);
-        } else {
-            self.data[i / 64] |= 0 << (i % 64);
-        }
-    }
 }
 
 #[test]

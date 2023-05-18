@@ -1,6 +1,6 @@
 use std::arch::x86_64::{_popcnt64, _pdep_u64, _tzcnt_u64};
 
-pub mod raw_bit_vector;
+mod raw_bit_vector;
 use self::raw_bit_vector::BitVector;
 
 pub struct SucBV {
