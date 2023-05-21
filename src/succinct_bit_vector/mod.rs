@@ -68,8 +68,37 @@ impl SucBV {
         }
     }
 
-    pub fn select(self: &Self, _i: usize, _j: bool) {
-        todo!();
+    // i: 0-indexed
+    pub fn select(self: &Self, i: usize, j: bool) -> Option<usize> {
+        // iが1-indexedの方がやりやすいと思ったので変換
+        let i = i + 1;
+
+        if i <= 0 {
+            None
+        } else {
+            let i_large = self.rank_index.large.partition_point(|&x| x < i);
+
+            let remaining = i - self.rank_index.large[i_large - 1];
+            let i_small_start = (i_large - 1) * RANK_INDEX_LARGE_SIZE / RANK_INDEX_SMALL_SIZE;
+            let i_small_end = i_large * RANK_INDEX_LARGE_SIZE / RANK_INDEX_SMALL_SIZE;
+            let i_small_end = if i_small_end > self.rank_index.small.len() { self.rank_index.small.len() } else { i_small_end };
+
+            let i_small = self.rank_index.small[i_small_start..i_small_end].partition_point(|&x| x < remaining);
+            let mut remaining = remaining - self.rank_index.small[i_small_start + i_small - 1];
+
+            let i_bit_start = (i_small_start + i_small - 1) * RANK_INDEX_SMALL_SIZE;
+            for k in i_bit_start..self.bit_vector.len {
+                if self.access(k) {
+                    remaining -= 1;
+                }
+
+                if remaining == 0 {
+                    return Some(k);
+                }
+            }
+
+            None
+        }
     }
 }
 
@@ -123,6 +152,30 @@ mod test {
 
         for i in 0..=LENGTH {
             assert_eq!(sum1[i], sucbv.rank(i, true), " at {} th loop", i);
+        }
+    }
+
+    #[test]
+    fn test_select1() {
+        let mut rng = rand::thread_rng();
+        let mut raw = vec![false; LENGTH];
+        let mut indices = Vec::new();
+        let mut popcnt = 0;
+        for i in 0..LENGTH  {
+            raw[i] = rng.gen();
+            if raw[i] {
+                indices.push(i);
+                popcnt += 1;
+            }
+        }
+        let sucbv = super::SucBV::from_boolvec(raw);
+
+        for i in 0..popcnt {
+            assert_eq!(Some(indices[i]), sucbv.select(i, true), " at {} th loop", i);
+        }
+
+        for i in popcnt..LENGTH {
+            assert_eq!(None, sucbv.select(i, true));
         }
     }
 }
