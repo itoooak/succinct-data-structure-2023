@@ -47,8 +47,8 @@ impl SucBV {
 
     // [0, i)
     pub fn rank(self: &Self, i: usize, j: bool) -> usize {
-        let mut sum1: usize = self.rank_index.large[i / RANK_INDEX_LARGE_SIZE]
-            + self.rank_index.small[i / RANK_INDEX_SMALL_SIZE];
+        let mut sum1: usize = self.rank_index.large1[i / RANK_INDEX_LARGE_SIZE]
+            + self.rank_index.small1[i / RANK_INDEX_SMALL_SIZE];
 
         let l = (i - i % RANK_INDEX_SMALL_SIZE) / 64;
         let r = i / 64;
@@ -75,20 +75,61 @@ impl SucBV {
 
         if i <= 0 {
             None
-        } else {
-            let i_large = self.rank_index.large.partition_point(|&x| x < i);
+        } else if j {
+            let i_large = self.rank_index.large1.partition_point(|&x| x < i);
 
-            let remaining = i - self.rank_index.large[i_large - 1];
+            let remaining = i - self.rank_index.large1[i_large - 1];
             let i_small_start = (i_large - 1) * RANK_INDEX_LARGE_SIZE / RANK_INDEX_SMALL_SIZE;
             let i_small_end = i_large * RANK_INDEX_LARGE_SIZE / RANK_INDEX_SMALL_SIZE;
-            let i_small_end = if i_small_end > self.rank_index.small.len() { self.rank_index.small.len() } else { i_small_end };
+            let i_small_end = if i_small_end > self.rank_index.small1.len() {
+                self.rank_index.small1.len()
+            } else {
+                i_small_end
+            };
 
-            let i_small = self.rank_index.small[i_small_start..i_small_end].partition_point(|&x| x < remaining);
-            let mut remaining = remaining - self.rank_index.small[i_small_start + i_small - 1];
+            let i_small = self.rank_index.small1[i_small_start..i_small_end]
+                .partition_point(|&x| x < remaining);
+            let mut remaining = remaining - self.rank_index.small1[i_small_start + i_small - 1];
 
             let i_bit_start = (i_small_start + i_small - 1) * RANK_INDEX_SMALL_SIZE;
             for k in i_bit_start..self.bit_vector.len {
                 if self.access(k) {
+                    remaining -= 1;
+                }
+
+                if remaining == 0 {
+                    return Some(k);
+                }
+            }
+
+            None
+        } else {
+            let i_large = self.rank_index.large0.partition_point(|&x| x < i);
+
+            let remaining = i - self.rank_index.large0[i_large - 1];
+            let i_small_start = (i_large - 1) * RANK_INDEX_LARGE_SIZE / RANK_INDEX_SMALL_SIZE;
+            let i_small_end = i_large * RANK_INDEX_LARGE_SIZE / RANK_INDEX_SMALL_SIZE;
+            let i_small_end = if i_small_end > self.rank_index.small0.len() {
+                self.rank_index.small0.len()
+            } else {
+                i_small_end
+            };
+
+            let i_small = self.rank_index.small0[i_small_start..i_small_end]
+                .partition_point(|&x| x < remaining);
+
+            if remaining < self.rank_index.small0[i_small_start + i_small - 1] {
+                dbg!(remaining);
+                dbg!(self.rank_index.small0[i_small_start + i_small - 1]);
+                dbg!(i);
+                panic!();
+            }
+
+            let mut remaining = remaining - self.rank_index.small0[i_small_start + i_small - 1];
+
+            let i_bit_start = (i_small_start + i_small - 1) * RANK_INDEX_SMALL_SIZE;
+            for k in i_bit_start..self.bit_vector.len {
+                if !self.access(k) {
                     remaining -= 1;
                 }
 
@@ -156,18 +197,49 @@ mod test {
     }
 
     #[test]
+    fn test_select0() {
+        let mut rng = rand::thread_rng();
+        let mut raw = vec![false; LENGTH];
+        let mut indices = Vec::new();
+        let mut zerocnt = 0;
+        for i in 0..LENGTH {
+            raw[i] = rng.gen();
+            if !raw[i] {
+                indices.push(i);
+                zerocnt += 1;
+            }
+        }
+
+        let sucbv = super::SucBV::from_boolvec(raw);
+
+        for i in 0..zerocnt {
+            assert_eq!(
+                Some(indices[i]),
+                sucbv.select(i, false),
+                " at {} th loop",
+                i
+            );
+        }
+
+        for i in zerocnt..LENGTH {
+            assert_eq!(None, sucbv.select(i, false));
+        }
+    }
+
+    #[test]
     fn test_select1() {
         let mut rng = rand::thread_rng();
         let mut raw = vec![false; LENGTH];
         let mut indices = Vec::new();
         let mut popcnt = 0;
-        for i in 0..LENGTH  {
+        for i in 0..LENGTH {
             raw[i] = rng.gen();
             if raw[i] {
                 indices.push(i);
                 popcnt += 1;
             }
         }
+
         let sucbv = super::SucBV::from_boolvec(raw);
 
         for i in 0..popcnt {
